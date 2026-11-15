@@ -180,11 +180,11 @@ class InvoicePdfService {
             ? sprintf(
                 '%s<br>%s %s<br>%s %s<br>%s',
                 $this->escape($customer->getCompany()),
+                $this->escape($customer->getContactName()),
                 $this->escape($customer->getStreet()),
                 $this->escape($customer->getHouseNumber()),
                 $this->escape($customer->getZip()),
-                $this->escape($customer->getCity()),
-                $this->escape($customer->getContactName())
+                $this->escape($customer->getCity())
             )
             : '';
 
@@ -340,6 +340,31 @@ class InvoicePdfService {
             }
         }
 
+        $footerAddress = implode('<br>', array_filter([
+            $this->escape($company?->getOwnerName() ?: $company?->getName()),
+            trim($this->escape($company?->getStreet()) . ' ' . $this->escape($company?->getHouseNumber())),
+            trim($this->escape($company?->getZip()) . ' ' . $this->escape($company?->getCity())),
+        ], static fn(string $line): bool => trim($line) !== ''));
+
+        $footerBank = implode('<br>', array_filter([
+            $misc?->getBankName() ? $this->escape($misc->getBankName()) : '',
+            $misc?->getIban() ? 'IBAN: ' . $this->escape($misc->getIban()) : '',
+            $misc?->getBic() ? 'BIC: ' . $this->escape($misc->getBic()) : '',
+        ], static fn(string $line): bool => $line !== ''));
+
+        $footerTax = implode('<br>', array_filter([
+            $company?->getTaxId() ? 'Steuer-Nr.: ' . $this->escape($company->getTaxId()) : '',
+            'Finanzamt Stuttgart',
+            $company?->getVatId() ? 'USt-IdNr.: ' . $this->escape($company->getVatId()) : '',
+        ], static fn(string $line): bool => $line !== ''));
+
+        $footerTable = sprintf(
+            '<table class="footer-cols"><tr><td>%s</td><td>%s</td><td>%s</td></tr></table>',
+            $footerAddress,
+            $footerBank,
+            $footerTax
+        );
+
         return sprintf(
             '<html><head><meta charset="UTF-8"><style>
                 @page { margin: 32px 32px 120px 32px; }
@@ -358,13 +383,14 @@ class InvoicePdfService {
                 table.items th, table.items td { border-bottom: 1px solid #e5e7eb; padding: 8px 4px; vertical-align: top; }
                 table.items th { text-align: left; background: #f3f4f6; }
                 .totals { margin-top: 12px; text-align: right; }
-                .footer { position: fixed; left: 0; right: 0; bottom: -94px; font-size: 10px; color: #4b5563; border-top: 1px solid #d1d5db; padding-top: 8px; line-height: 1.35; text-align: center; }
+                .footer { position: fixed; left: 0; right: 0; bottom: -94px; font-size: 10px; color: #4b5563; border-top: 1px solid #d1d5db; padding-top: 8px; line-height: 1.35; text-align: left; }
                 .footer p { margin: 0 0 4px; }
+                .footer-cols { width: 100%%; border-collapse: collapse; table-layout: fixed; }
+                .footer-cols td { width: 33.33%%; vertical-align: top; text-align: left; padding: 0 8px 0 0; word-wrap: break-word; }
             </style></head><body>
             <div class="footer">
+              %s
               <p>%s</p>
-              %s
-              %s
             </div>
             %s
             <div class="customer">%s</div>
@@ -398,9 +424,8 @@ class InvoicePdfService {
             </body></html>',
             $bodyFontPx,
             $logoCss,
+            $footerTable,
             nl2br($this->escape($footerText)),
-            $bankInfo,
-            '',
             $companyHeader,
             $customerBlock,
             $this->escape($title),
@@ -627,6 +652,7 @@ class InvoicePdfService {
         ];
         if ($layout['showEmail'] && $company->getEmail()) {
             $lines[] = $this->escape($company->getEmail());
+            $lines[] = 'www.einfach-stickerei.de';
         }
         if ($layout['showPhone'] && $company->getPhone()) {
             $lines[] = $this->escape($company->getPhone());
