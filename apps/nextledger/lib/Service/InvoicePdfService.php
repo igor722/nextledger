@@ -178,7 +178,7 @@ class InvoicePdfService {
 
         $customerBlock = $customer
             ? sprintf(
-                '%s<br>%s %s<br>%s %s<br>%s',
+                '%s<br>%s<br>%s %s<br>%s %s',
                 $this->escape($customer->getCompany()),
                 $this->escape($customer->getContactName()),
                 $this->escape($customer->getStreet()),
